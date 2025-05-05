@@ -1,0 +1,20 @@
+version: 0.2
+
+phases:
+  install:
+    runtime-versions:
+      nodejs: 18
+      php: 8.1
+  build:
+    commands:
+      - echo "Build started on `date`"
+      - echo "Installing dependencies (if any)..."
+  post_build:
+    commands:
+      - echo "Copying files to EC2 app folders"
+      - cp -r apps/node-backend/* /home/ubuntu/apps/node-backend/
+      - cp -r apps/php-dashboard/* /home/ubuntu/apps/php-dashboard/
+
+artifacts:
+  files:
+    - apps/**/* 
