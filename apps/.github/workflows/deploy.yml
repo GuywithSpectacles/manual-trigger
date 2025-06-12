@@ -1,0 +1,35 @@
+name: 🚀 Deploy PHP Frontend to VPS
+
+on:
+  push:
+    branches:
+      - main
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: ✅ Checkout Code
+        uses: actions/checkout@v3
+
+      - name: 🔐 Setup SSH Key
+        run: |
+          mkdir -p ~/.ssh
+          echo "${{ secrets.MAC_HOSTINGER_VPS }}" > ~/.ssh/id_ed25519
+          chmod 600 ~/.ssh/id_ed25519
+          ssh-keyscan ${{ vars.VPS_HOST }} >> ~/.ssh/known_hosts
+
+      - name: 🚚 Deploy PHP Frontend
+        run: |
+          rsync -avz --delete \
+            -e "ssh -i ~/.ssh/id_ed25519" \
+            /frontend/ ${{ vars.VPS_USER }}@${{ vars.VPS_HOST }}:/home/${{ vars.VPS_USER }}/frontend
+
+      - name: ✅ Optional Post-deploy Commands
+        run: |
+          ssh -i ~/.ssh/id_ed25519 ${{ vars.VPS_USER }}@${{ vars.VPS_HOST }} << 'EOF'
+            cd ~/frontend
+            # Optional: composer install
+            # Optional: set permissions
+          EOF
