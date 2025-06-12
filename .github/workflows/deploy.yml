@@ -33,3 +33,8 @@ jobs:
             # Optional: composer install
             # Optional: set permissions
           EOF
+
+      - name: 🐛 Debug SSH
+        run: |
+            ssh -i ~/.ssh/id_ed25519 ${{ vars.VPS_USER }}@${{ vars.VPS_HOST }} "echo 'SSH Connected Successfully'"
+
