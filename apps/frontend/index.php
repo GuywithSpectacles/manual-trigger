@@ -1,1 +1,1 @@
-<?php echo 'whatever'; ?>
+<?php echo 'Halabalo and howdy does it look?'; ?>
