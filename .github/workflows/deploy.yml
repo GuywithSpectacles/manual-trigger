@@ -34,8 +34,11 @@ jobs:
 
       - name: ✅ Post-deploy Commands
         run: |
-          ssh -i ~/.ssh/id_ed25519 ${{ vars.VPS_USER }}@${{ vars.VPS_HOST }} << 'EOF'
-            sudo /usr/bin/systemctl reload nginx
+          ssh -4 -i ~/.ssh/id_ed25519 ${{ vars.VPS_USER }}@${{ vars.VPS_HOST }} << 'EOF'
+            whoami
+            sudo -l
+            sudo -n /usr/bin/systemctl reload nginx || echo "Sudo command failed"
+            systemctl status nginx
           EOF
 
 
