@@ -34,7 +34,7 @@ jobs:
 
       - name: ✅ Reload Nginx
         run: |
-          ssh -tt -i ~/.ssh/id_ed25519 ${{ vars.VPS_USER }}@${{ vars.VPS_HOST }} "sudo /usr/bin/systemctl reload nginx"
+          ssh -i ~/.ssh/id_ed25519 ${{ vars.VPS_USER }}@${{ vars.VPS_HOST }} "sudo /usr/bin/systemctl reload nginx"
 
 
       - name: 🐛 Debug SSH
