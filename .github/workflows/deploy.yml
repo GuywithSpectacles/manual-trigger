@@ -1,4 +1,4 @@
-name: 🚀 Deploy PHP Frontend to VPS
+name: 🚀 Deploy PHP Frontends to VPS
 
 on:
   push:
@@ -20,21 +20,24 @@ jobs:
           chmod 600 ~/.ssh/id_ed25519
           ssh-keyscan ${{ vars.VPS_HOST }} >> ~/.ssh/known_hosts
 
-      - name: 🚚 Deploy PHP Frontend
+      - name: 🚚 Deploy Frontend 1
         run: |
           rsync -avz --delete \
             -e "ssh -i ~/.ssh/id_ed25519" \
             apps/frontend/ ${{ vars.VPS_USER }}@${{ vars.VPS_HOST }}:/home/${{ vars.VPS_USER }}/frontend
 
-      - name: ✅ Optional Post-deploy Commands
+      - name: 🚚 Deploy Frontend 2
+        run: |
+          rsync -avz --delete \
+            -e "ssh -i ~/.ssh/id_ed25519" \
+            apps/frontend2/ ${{ vars.VPS_USER }}@${{ vars.VPS_HOST }}:/home/${{ vars.VPS_USER }}/frontend2
+
+      - name: ✅ Post-deploy Commands
         run: |
           ssh -i ~/.ssh/id_ed25519 ${{ vars.VPS_USER }}@${{ vars.VPS_HOST }} << 'EOF'
-            cd ~/frontend
-            # Optional: composer install
-            # Optional: set permissions
+            sudo systemctl reload nginx
           EOF
 
       - name: 🐛 Debug SSH
         run: |
-            ssh -i ~/.ssh/id_ed25519 ${{ vars.VPS_USER }}@${{ vars.VPS_HOST }} "echo 'SSH Connected Successfully'"
-
+          ssh -i ~/.ssh/id_ed25519 ${{ vars.VPS_USER }}@${{ vars.VPS_HOST }} "echo 'SSH Connected Successfully'"
