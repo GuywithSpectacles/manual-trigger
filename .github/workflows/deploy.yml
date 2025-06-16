@@ -32,9 +32,9 @@ jobs:
             -e "ssh -i ~/.ssh/id_ed25519" \
             apps/frontend2/ ${{ vars.VPS_USER }}@${{ vars.VPS_HOST }}:/home/${{ vars.VPS_USER }}/frontend2
 
-      - name: ✅ Reload Nginx
+      - name: 🧪 Test sudo access
         run: |
-          ssh -i ~/.ssh/id_ed25519 ${{ vars.VPS_USER }}@${{ vars.VPS_HOST }} "sudo /usr/bin/systemctl reload nginx"
+          ssh -i ~/.ssh/id_ed25519 ${{ vars.VPS_USER }}@${{ vars.VPS_HOST }} "whoami && sudo -l"
 
 
       - name: 🐛 Debug SSH
