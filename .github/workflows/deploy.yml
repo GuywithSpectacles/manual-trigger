@@ -32,11 +32,10 @@ jobs:
             -e "ssh -i ~/.ssh/id_ed25519" \
             apps/frontend2/ ${{ vars.VPS_USER }}@${{ vars.VPS_HOST }}:/home/${{ vars.VPS_USER }}/frontend2
 
-      - name: ✅ Post-deploy Commands
+      - name: ✅ Reload Nginx
         run: |
-          ssh -tt -i ~/.ssh/id_ed25519 ${{ vars.VPS_USER }}@${{ vars.VPS_HOST }} << 'EOF'
-            sudo /usr/bin/systemctl reload nginx
-          EOF
+          ssh -tt -i ~/.ssh/id_ed25519 ${{ vars.VPS_USER }}@${{ vars.VPS_HOST }} "echo | sudo -S /usr/bin/systemctl reload nginx"
+
 
       - name: 🐛 Debug SSH
         run: |
