@@ -35,7 +35,7 @@ jobs:
       - name: ✅ Post-deploy Commands
         run: |
           ssh -tt -i ~/.ssh/id_ed25519 ${{ vars.VPS_USER }}@${{ vars.VPS_HOST }} << 'EOF'
-            sudo systemctl reload nginx
+            sudo /usr/bin/systemctl reload nginx
           EOF
 
       - name: 🐛 Debug SSH
