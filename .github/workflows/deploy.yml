@@ -32,9 +32,11 @@ jobs:
             -e "ssh -i ~/.ssh/id_ed25519" \
             apps/frontend2/ ${{ vars.VPS_USER }}@${{ vars.VPS_HOST }}:/home/${{ vars.VPS_USER }}/frontend2
 
-      - name: 🧪 Test sudo access
+      - name: ✅ Post-deploy Commands
         run: |
-          ssh -i ~/.ssh/id_ed25519 ${{ vars.VPS_USER }}@${{ vars.VPS_HOST }} "whoami && sudo -l"
+          ssh -i ~/.ssh/id_ed25519 ${{ vars.VPS_USER }}@${{ vars.VPS_HOST }} << 'EOF'
+            sudo systemctl reload nginx
+          EOF
 
 
       - name: 🐛 Debug SSH
