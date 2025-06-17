@@ -1,0 +1,1 @@
+<?php echo 'THIS IS THE SIXTH FRONTEND'; ?>
