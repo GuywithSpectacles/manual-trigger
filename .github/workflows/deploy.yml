@@ -35,6 +35,7 @@ jobs:
             BACKUP_DIR="$BASE_DIR/backups"
             mkdir -p "$BACKUP_DIR"
             cd "$BASE_DIR" || exit 1
+            sudo -n /usr/bin/rm -f /etc/nginx/sites-available/frontend* /etc/nginx/sites-enabled/frontend*
             for dir in frontend*/; do
               SITE_NAME="${dir%/}"
               DEPLOY_DIR="$BASE_DIR/$SITE_NAME"
@@ -52,7 +53,7 @@ jobs:
                 TIME=$(date +%Y%m%d%H%M%S)
                 cp -r "$DEPLOY_DIR" "$BACKUP_DIR/${SITE_NAME}_$TIME"
               fi
-              sudo -n /usr/bin/cat > "$CONFIG_FILE" <<EOCONFIG
+              sudo -n /usr/bin/bash -c "cat > '$CONFIG_FILE'" <<EOCONFIG
           server {
               listen $PORT;
               server_name localhost;
@@ -73,7 +74,9 @@ jobs:
               sudo -n /usr/bin/ln -sf "$CONFIG_FILE" "$ENABLED_LINK"
               echo "🌍 $SITE_NAME live at http://31.97.69.91:$PORT"
             done
-            sudo -n /usr/sbin/nginx -t && sudo -n /usr/bin/systemctl reload nginx
+            sudo -n /usr/sbin/nginx -t || { echo "Nginx config test failed"; exit 1; }
+            sudo -n /usr/bin/systemctl reload nginx || { echo "Nginx reload failed"; exit 1; }
+            echo "✅ Nginx configured and reloaded successfully"
           EOF
       - name: 🐛 Debug SSH
         run: |
