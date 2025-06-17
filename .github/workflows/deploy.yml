@@ -18,12 +18,33 @@ jobs:
       - name: 📂 Sync Frontend Files
         run: |
           for folder in apps/frontend*; do
-            NAME=$(basename $folder)
-            echo "🚚 Deploying $NAME..."
-            rsync -avz --delete \
-              -e "ssh -4 -i ~/.ssh/id_ed25519" \
-              $folder/ ${{ vars.VPS_USER }}@${{ vars.VPS_HOST }}:/home/${{ vars.VPS_USER }}/$NAME
+            if [ -d "$folder" ]; then
+              NAME=$(basename $folder)
+              echo "🚚 Deploying $NAME..."
+              rsync -avz --delete \
+                -e "ssh -4 -i ~/.ssh/id_ed25519" \
+                $folder/ ${{ vars.VPS_USER }}@${{ vars.VPS_HOST }}:/home/${{ vars.VPS_USER }}/$NAME
+            else
+              echo "⚠️ No frontend directories found"
+            fi
           done
+      - name: 🔥 Configure Firewall
+        run: |
+          ssh -4 -i ~/.ssh/id_ed25519 ${{ vars.VPS_USER }}@${{ vars.VPS_HOST }} bash -s <<'EOF'
+            sudo -n /usr/sbin/ufw allow 22/tcp
+            sudo -n /usr/sbin/ufw allow 80/tcp
+            sudo -n /usr/sbin/ufw allow 443/tcp
+            if [ -f "/home/aqeel/ports.txt" ]; then
+              while IFS=: read -r site port; do
+                if [ -n "$port" ]; then
+                  sudo -n /usr/sbin/ufw allow $port/tcp
+                  echo "🔓 Allowed port $port for $site"
+                fi
+              done < "/home/aqeel/ports.txt"
+            fi
+            sudo -n /usr/sbin/ufw reload
+            sudo -n /usr/sbin/ufw status
+          EOF
       - name: ⚙️ Configure Nginx Remotely
         run: |
           ssh -4 -i ~/.ssh/id_ed25519 ${{ vars.VPS_USER }}@${{ vars.VPS_HOST }} bash -s <<'EOF'
@@ -36,43 +57,50 @@ jobs:
             mkdir -p "$BACKUP_DIR"
             cd "$BASE_DIR" || exit 1
             sudo -n /usr/bin/rm -f /etc/nginx/sites-available/frontend* /etc/nginx/sites-enabled/frontend*
+            PHP_FPM_SOCK=$(ls /var/run/php/php*-fpm.sock | head -1)
+            if [ -z "$PHP_FPM_SOCK" ]; then
+              echo "⚠️ No PHP-FPM socket found"
+              exit 1
+            fi
             for dir in frontend*/; do
-              SITE_NAME="${dir%/}"
-              DEPLOY_DIR="$BASE_DIR/$SITE_NAME"
-              CONFIG_FILE="/etc/nginx/sites-available/$SITE_NAME"
-              ENABLED_LINK="/etc/nginx/sites-enabled/$SITE_NAME"
-              touch "$PORTS_FILE"
-              PORT=$(grep "^$SITE_NAME:" "$PORTS_FILE" | cut -d':' -f2)
-              if [ -z "$PORT" ]; then
-                LAST_PORT=$(awk -F: '{print $2}' "$PORTS_FILE" | sort -n | tail -1)
-                [ -z "$LAST_PORT" ] && LAST_PORT=$((START_PORT - 1))
-                PORT=$((LAST_PORT + 1))
-                echo "$SITE_NAME:$PORT" >> "$PORTS_FILE"
+              if [ -d "$dir" ]; then
+                SITE_NAME="${dir%/}"
+                DEPLOY_DIR="$BASE_DIR/$SITE_NAME"
+                CONFIG_FILE="/etc/nginx/sites-available/$SITE_NAME"
+                ENABLED_LINK="/etc/nginx/sites-enabled/$SITE_NAME"
+                touch "$PORTS_FILE"
+                PORT=$(grep "^$SITE_NAME:" "$PORTS_FILE" | cut -d':' -f2)
+                if [ -z "$PORT" ]; then
+                  LAST_PORT=$(awk -F: '{print $2}' "$PORTS_FILE" | sort -n | tail -1)
+                  [ -z "$LAST_PORT" ] && LAST_PORT=$((START_PORT - 1))
+                  PORT=$((LAST_PORT + 1))
+                  echo "$SITE_NAME:$PORT" >> "$PORTS_FILE"
+                fi
+                if [ -d "$DEPLOY_DIR" ]; then
+                  TIME=$(date +%Y%m%d%H%M%S)
+                  cp -r "$DEPLOY_DIR" "$BACKUP_DIR/${SITE_NAME}_$TIME"
+                fi
+                sudo -n /usr/bin/bash -c "cat > '$CONFIG_FILE'" <<-EOCONFIG
+                    server {
+                        listen $PORT;
+                        server_name localhost;
+                        root $DEPLOY_DIR;
+                        index index.php;
+                        location / {
+                            try_files \$uri \$uri/ /index.php?\$query_string;
+                        }
+                        location ~ \.php$ {
+                            include snippets/fastcgi-php.conf;
+                            fastcgi_pass unix:$PHP_FPM_SOCK;
+                        }
+                        location ~ /\.ht {
+                            deny all;
+                        }
+                    }
+                EOCONFIG
+                sudo -n /usr/bin/ln -sf "$CONFIG_FILE" "$ENABLED_LINK"
+                echo "🌍 $SITE_NAME live at http://31.97.69.91:$PORT"
               fi
-              if [ -d "$DEPLOY_DIR" ]; then
-                TIME=$(date +%Y%m%d%H%M%S)
-                cp -r "$DEPLOY_DIR" "$BACKUP_DIR/${SITE_NAME}_$TIME"
-              fi
-              sudo -n /usr/bin/bash -c "cat > '$CONFIG_FILE'" <<EOCONFIG
-          server {
-              listen $PORT;
-              server_name localhost;
-              root $DEPLOY_DIR;
-              index index.php;
-              location / {
-                  try_files \$uri \$uri/ /index.php?\$query_string;
-              }
-              location ~ \.php$ {
-                  include snippets/fastcgi-php.conf;
-                  fastcgi_pass unix:/var/run/php/php8.3-fpm.sock;
-              }
-              location ~ /\.ht {
-                  deny all;
-              }
-          }
-          EOCONFIG
-              sudo -n /usr/bin/ln -sf "$CONFIG_FILE" "$ENABLED_LINK"
-              echo "🌍 $SITE_NAME live at http://31.97.69.91:$PORT"
             done
             sudo -n /usr/sbin/nginx -t || { echo "Nginx config test failed"; exit 1; }
             sudo -n /usr/bin/systemctl reload nginx || { echo "Nginx reload failed"; exit 1; }
