@@ -1,54 +1,46 @@
 name: 🚀 Deploy PHP Frontends to VPS
-
 on:
   push:
     branches:
       - main
-
 jobs:
   deploy:
     runs-on: ubuntu-latest
-
     steps:
       - name: ✅ Checkout Code
         uses: actions/checkout@v3
-
       - name: 🔐 Setup SSH Key
         run: |
           mkdir -p ~/.ssh
           echo "${{ secrets.MAC_HOSTINGER_VPS }}" > ~/.ssh/id_ed25519
           chmod 600 ~/.ssh/id_ed25519
-          ssh-keyscan ${{ vars.VPS_HOST }} >> ~/.ssh/known_hosts
-
+          ssh-keyscan -4 ${{ vars.VPS_HOST }} >> ~/.ssh/known_hosts
       - name: 📂 Sync Frontend Files
         run: |
           for folder in apps/frontend*; do
             NAME=$(basename $folder)
             echo "🚚 Deploying $NAME..."
             rsync -avz --delete \
-              -e "ssh -i ~/.ssh/id_ed25519" \
+              -e "ssh -4 -i ~/.ssh/id_ed25519" \
               $folder/ ${{ vars.VPS_USER }}@${{ vars.VPS_HOST }}:/home/${{ vars.VPS_USER }}/$NAME
           done
-
       - name: ⚙️ Configure Nginx Remotely
         run: |
-          ssh -i ~/.ssh/id_ed25519 ${{ vars.VPS_USER }}@${{ vars.VPS_HOST }} bash -s <<'EOF'
+          ssh -4 -i ~/.ssh/id_ed25519 ${{ vars.VPS_USER }}@${{ vars.VPS_HOST }} bash -s <<'EOF'
+            whoami
+            sudo -l
             BASE_DIR="/home/aqeel"
             PORTS_FILE="$BASE_DIR/ports.txt"
             START_PORT=8081
             BACKUP_DIR="$BASE_DIR/backups"
             mkdir -p "$BACKUP_DIR"
-
             cd "$BASE_DIR" || exit 1
-
             for dir in frontend*/; do
               SITE_NAME="${dir%/}"
               DEPLOY_DIR="$BASE_DIR/$SITE_NAME"
               CONFIG_FILE="/etc/nginx/sites-available/$SITE_NAME"
               ENABLED_LINK="/etc/nginx/sites-enabled/$SITE_NAME"
-
               touch "$PORTS_FILE"
-
               PORT=$(grep "^$SITE_NAME:" "$PORTS_FILE" | cut -d':' -f2)
               if [ -z "$PORT" ]; then
                 LAST_PORT=$(awk -F: '{print $2}' "$PORTS_FILE" | sort -n | tail -1)
@@ -56,42 +48,33 @@ jobs:
                 PORT=$((LAST_PORT + 1))
                 echo "$SITE_NAME:$PORT" >> "$PORTS_FILE"
               fi
-
               if [ -d "$DEPLOY_DIR" ]; then
                 TIME=$(date +%Y%m%d%H%M%S)
                 cp -r "$DEPLOY_DIR" "$BACKUP_DIR/${SITE_NAME}_$TIME"
               fi
-
-              sudo bash -c "cat > $CONFIG_FILE" <<EOCONFIG
+              sudo -n /usr/bin/cat > "$CONFIG_FILE" <<EOCONFIG
           server {
               listen $PORT;
               server_name localhost;
-
               root $DEPLOY_DIR;
               index index.php;
-
               location / {
                   try_files \$uri \$uri/ /index.php?\$query_string;
               }
-
               location ~ \.php$ {
                   include snippets/fastcgi-php.conf;
                   fastcgi_pass unix:/var/run/php/php8.3-fpm.sock;
               }
-
               location ~ /\.ht {
                   deny all;
               }
           }
           EOCONFIG
-
-              sudo ln -sf "$CONFIG_FILE" "$ENABLED_LINK"
-              echo "🌍 $SITE_NAME live at http://<your-server-ip>:$PORT"
+              sudo -n /usr/bin/ln -sf "$CONFIG_FILE" "$ENABLED_LINK"
+              echo "🌍 $SITE_NAME live at http://31.97.69.91:$PORT"
             done
-
-            sudo nginx -t && sudo systemctl reload nginx
+            sudo -n /usr/sbin/nginx -t && sudo -n /usr/bin/systemctl reload nginx
           EOF
-
       - name: 🐛 Debug SSH
         run: |
-          ssh -i ~/.ssh/id_ed25519 ${{ vars.VPS_USER }}@${{ vars.VPS_HOST }} "echo '✅ SSH Working — Deployment Complete'"
+          ssh -4 -i ~/.ssh/id_ed25519 ${{ vars.VPS_USER }}@${{ vars.VPS_HOST }} "echo '✅ SSH Working — Deployment Complete'"
