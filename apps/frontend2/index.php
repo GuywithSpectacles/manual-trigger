@@ -1,1 +1,1 @@
-<?php echo 'this index.php is for the frontend 2'; ?>
+<?php echo 'this index.php frontend 2'; ?>
