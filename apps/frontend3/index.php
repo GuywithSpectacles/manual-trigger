@@ -1,0 +1,1 @@
+<?php echo 'this index.php is for the frontend 3'; ?>
