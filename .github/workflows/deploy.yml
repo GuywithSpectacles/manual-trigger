@@ -24,23 +24,6 @@ jobs:
               -e "ssh -4 -i ~/.ssh/id_ed25519" \
               $folder/ ${{ vars.VPS_USER }}@${{ vars.VPS_HOST }}:/home/${{ vars.VPS_USER }}/$NAME
           done
-      - name: 🔥 Configure Firewall
-        run: |
-          ssh -4 -i ~/.ssh/id_ed25519 ${{ vars.VPS_USER }}@${{ vars.VPS_HOST }} bash -s <<'EOF'
-            sudo -n /usr/sbin/ufw allow 22/tcp
-            sudo -n /usr/sbin/ufw allow 80/tcp
-            sudo -n /usr/sbin/ufw allow 443/tcp
-            if [ -f "/home/aqeel/ports.txt" ]; then
-              while IFS=: read -r site port; do
-                if [ -n "$port" ]; then
-                  sudo -n /usr/sbin/ufw allow $port/tcp
-                  echo "🔓 Allowed port $port for $site"
-                fi
-              done < "/home/aqeel/ports.txt"
-            fi
-            sudo -n /usr/sbin/ufw reload
-            sudo -n /usr/sbin/ufw status
-          EOF
       - name: ⚙️ Configure Nginx Remotely
         run: |
           ssh -4 -i ~/.ssh/id_ed25519 ${{ vars.VPS_USER }}@${{ vars.VPS_HOST }} bash -s <<'EOF'
@@ -91,6 +74,20 @@ jobs:
               sudo -n /usr/bin/ln -sf "$CONFIG_FILE" "$ENABLED_LINK"
               echo "🌍 $SITE_NAME live at http://31.97.69.91:$PORT"
             done
+            # Configure firewall after updating ports.txt
+            sudo -n /usr/sbin/ufw allow 22/tcp
+            sudo -n /usr/sbin/ufw allow 80/tcp
+            sudo -n /usr/sbin/ufw allow 443/tcp
+            if [ -f "$PORTS_FILE" ]; then
+              while IFS=: read -r site port; do
+                if [ -n "$port" ]; then
+                  sudo -n /usr/sbin/ufw allow $port/tcp
+                  echo "🔓 Allowed port $port for $site"
+                fi
+              done < "$PORTS_FILE"
+            fi
+            sudo -n /usr/sbin/ufw reload
+            sudo -n /usr/sbin/ufw status
             sudo -n /usr/sbin/nginx -t || { echo "Nginx config test failed"; exit 1; }
             sudo -n /usr/bin/systemctl reload nginx || { echo "Nginx reload failed"; exit 1; }
             echo "✅ Nginx configured and reloaded successfully"
