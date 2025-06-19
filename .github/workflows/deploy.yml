@@ -96,7 +96,7 @@ jobs:
                 fi
 
                 # Write config.php securely
-                sudo -n bash -c "cat > '$DEPLOY_DIR/config.php' <<EOCONFIGPHP
+                sudo -n bash -c "cat > '$DEPLOY_DIR/config.php' <<'EOCONFIGPHP'
                 <?php
                 define('DB_HOST', 'localhost');
                 define('DB_NAME', '$DB_NAME');
@@ -123,10 +123,12 @@ jobs:
               if [ -d "$DEPLOY_DIR" ]; then
                 TIME=$(date +%Y%m%d%H%M%S)
                 cp -r "$DEPLOY_DIR" "$BACKUP_DIR/${SITE_NAME}_$TIME"
+                # Clean up backups older than 7 days
+                find "$BACKUP_DIR" -type d -mtime +7 -exec rm -rf {} \;
               fi
 
               # Nginx Configuration
-              sudo -n bash -c "cat > '$CONFIG_FILE' <<EOCONFIG
+              sudo -n bash -c "cat > '$CONFIG_FILE' <<'EOCONFIG'
               server {
                   listen $PORT;
                   server_name _;
@@ -141,7 +143,6 @@ jobs:
                   location ~ \.php\$ {
                       include snippets/fastcgi-php.conf;
                       fastcgi_pass unix:/var/run/php/php8.3-fpm.sock;
-                      fastcgi_param SCRIPT_FILENAME \$document_root\$fastcgi_script_name;
                       include fastcgi_params;
                   }
 
