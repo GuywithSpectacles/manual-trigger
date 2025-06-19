@@ -26,7 +26,7 @@ jobs:
                 $folder/ ${{ vars.VPS_USER }}@${{ vars.VPS_HOST }}:/home/${{ vars.VPS_USER }}/$NAME
             else
               echo "⏭ Skipped $folder (not a valid PHP project)"
-            fi
+          fi
           done
       - name: ⚙️ Configure Nginx and Databases Remotely
         run: |
