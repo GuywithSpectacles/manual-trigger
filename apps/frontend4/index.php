@@ -1,1 +1,0 @@
-<?php echo 'frontend 4'; ?>
