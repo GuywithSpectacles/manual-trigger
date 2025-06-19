@@ -37,6 +37,8 @@ jobs:
       - name: ⚙️ Configure Nginx and Databases Remotely
         run: |
           ssh -4 -i ~/.ssh/id_ed25519 aqeel@31.97.69.91 bash -s <<'EOF'
+            set -euo pipefail
+
             whoami
             BASE_DIR="/home/aqeel"
             PORTS_FILE="$BASE_DIR/ports.txt"
@@ -95,15 +97,14 @@ jobs:
                   fi
                 fi
 
-                # Write config.php securely
-                cat <<'EOCONFIGPHP' | sudo -n tee "$DEPLOY_DIR/config.php"
-                <?php
-                define('DB_HOST', 'localhost');
-                define('DB_NAME', '$DB_NAME');
-                define('DB_USER_NAME', '$DB_USER');
-                define('DB_PASSWORD', '$DB_PASS');
-                ?>
-                EOCONFIGPHP
+          cat <<'EOCONFIGPHP' | sudo -n tee "$DEPLOY_DIR/config.php"
+          <?php
+          define('DB_HOST', 'localhost');
+          define('DB_NAME', '$DB_NAME');
+          define('DB_USER_NAME', '$DB_USER');
+          define('DB_PASSWORD', '$DB_PASS');
+          ?>
+          EOCONFIGPHP
 
                 sudo -n chown aqeel:www-data "$DEPLOY_DIR/config.php"
                 sudo -n chmod 640 "$DEPLOY_DIR/config.php"
@@ -123,34 +124,32 @@ jobs:
               if [ -d "$DEPLOY_DIR" ]; then
                 TIME=$(date +%Y%m%d%H%M%S)
                 cp -r "$DEPLOY_DIR" "$BACKUP_DIR/${SITE_NAME}_$TIME"
-                # Clean up backups older than 7 days
                 find "$BACKUP_DIR" -type d -mtime +7 -exec rm -rf {} \;
               fi
 
-              # Nginx Configuration
-              cat <<EOCONFIG | sudo -n tee "$CONFIG_FILE"
-              server {
-                  listen $PORT;
-                  server_name _;
-                  root $DEPLOY_DIR;
-                  index index.php;
-                  client_max_body_size 100M;
+          cat <<EOCONFIG | sudo -n tee "$CONFIG_FILE"
+          server {
+              listen $PORT;
+              server_name _;
+              root $DEPLOY_DIR;
+              index index.php;
+              client_max_body_size 100M;
 
-                  location / {
-                      try_files \$uri \$uri/ /index.php?\$query_string;
-                  }
-
-                  location ~ \.php\$ {
-                      include snippets/fastcgi-php.conf;
-                      fastcgi_pass unix:/var/run/php/php8.3-fpm.sock;
-                      include fastcgi_params;
-                  }
-
-                  location ~ /\.ht {
-                      deny all;
-                  }
+              location / {
+                  try_files \$uri \$uri/ /index.php?\$query_string;
               }
-              EOCONFIG
+
+              location ~ \.php\$ {
+                  include snippets/fastcgi-php.conf;
+                  fastcgi_pass unix:/var/run/php/php8.3-fpm.sock;
+                  include fastcgi_params;
+              }
+
+              location ~ /\.ht {
+                  deny all;
+              }
+          }
+          EOCONFIG
 
               sudo -n chown aqeel:www-data "$CONFIG_FILE"
               sudo -n chmod 644 "$CONFIG_FILE"
