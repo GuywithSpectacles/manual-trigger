@@ -84,7 +84,7 @@ jobs:
                     echo "✅ Schema applied for $DB_NAME"
                   fi
                 fi
-                sudo -n /usr/bin/bash -c "cat > '$DEPLOY_DIR/config.php'" <<'EOCONFIGPHP'
+                sudo -n /usr/bin/bash -c "cat > '$DEPLOY_DIR/config.php'" <<EOCONFIGPHP
               <?php
               define('DB_HOST', 'localhost');
               define('DB_NAME', '$DB_NAME');
