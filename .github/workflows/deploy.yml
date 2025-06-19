@@ -96,14 +96,14 @@ jobs:
                 fi
 
                 # Write config.php securely
-                sudo -n bash -c "cat > '$DEPLOY_DIR/config.php' <<'EOCONFIGPHP'
+                cat <<'EOCONFIGPHP' | sudo -n tee "$DEPLOY_DIR/config.php"
                 <?php
                 define('DB_HOST', 'localhost');
                 define('DB_NAME', '$DB_NAME');
                 define('DB_USER_NAME', '$DB_USER');
                 define('DB_PASSWORD', '$DB_PASS');
                 ?>
-                EOCONFIGPHP"
+                EOCONFIGPHP
 
                 sudo -n chown aqeel:www-data "$DEPLOY_DIR/config.php"
                 sudo -n chmod 640 "$DEPLOY_DIR/config.php"
@@ -128,7 +128,7 @@ jobs:
               fi
 
               # Nginx Configuration
-              sudo -n bash -c "cat > '$CONFIG_FILE' <<'EOCONFIG'
+              cat <<EOCONFIG | sudo -n tee "$CONFIG_FILE"
               server {
                   listen $PORT;
                   server_name _;
@@ -150,7 +150,7 @@ jobs:
                       deny all;
                   }
               }
-              EOCONFIG"
+              EOCONFIG
 
               sudo -n chown aqeel:www-data "$CONFIG_FILE"
               sudo -n chmod 644 "$CONFIG_FILE"
