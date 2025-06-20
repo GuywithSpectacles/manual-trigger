@@ -40,6 +40,7 @@ jobs:
             set -euo pipefail
 
             whoami
+            sudo -l
             BASE_DIR="/home/aqeel"
             PORTS_FILE="$BASE_DIR/ports.txt"
             START_PORT=8081
@@ -50,11 +51,11 @@ jobs:
             # Remove only project-related Nginx configs
             for conf in /etc/nginx/sites-available/*; do
               name=$(basename "$conf")
-              [ -d "$BASE_DIR/$name" ] && sudo -n rm -f "$conf"
+              [ -d "$BASE_DIR/$name" ] && sudo -n /usr/bin/rm -f "$conf"
             done
             for conf in /etc/nginx/sites-enabled/*; do
               name=$(basename "$conf")
-              [ -d "$BASE_DIR/$name" ] && sudo -n rm -f "$conf"
+              [ -d "$BASE_DIR/$name" ] && sudo -n /usr/bin/rm -f "$conf"
             done
 
             for dir in */; do
@@ -83,31 +84,31 @@ jobs:
 
               # Database setup
               if [ -d "$DEPLOY_DIR" ]; then
-                DB_EXISTS=$(sudo -n mysql -uroot -e "SELECT SCHEMA_NAME FROM information_schema.SCHEMATA WHERE SCHEMA_NAME='$DB_NAME';" | grep -w "$DB_NAME")
+                DB_EXISTS=$(sudo -n /usr/bin/mysql -uroot -e "SELECT SCHEMA_NAME FROM information_schema.SCHEMATA WHERE SCHEMA_NAME='$DB_NAME';" | grep -w "$DB_NAME")
                 if [ -z "$DB_EXISTS" ]; then
                   echo "🗄 Creating database: $DB_NAME"
-                  sudo -n mysql -uroot -e "CREATE DATABASE IF NOT EXISTS \`$DB_NAME\`;"
-                  sudo -n mysql -uroot -e "CREATE USER IF NOT EXISTS '$DB_USER'@'localhost' IDENTIFIED BY '$DB_PASS';"
-                  sudo -n mysql -uroot -e "GRANT ALL PRIVILEGES ON \`$DB_NAME\`.* TO '$DB_USER'@'localhost';"
-                  sudo -n mysql -uroot -e "FLUSH PRIVILEGES;"
+                  sudo -n /usr/bin/mysql -uroot -e "CREATE DATABASE IF NOT EXISTS \`$DB_NAME\`;"
+                  sudo -n /usr/bin/mysql -uroot -e "CREATE USER IF NOT EXISTS '$DB_USER'@'localhost' IDENTIFIED BY '$DB_PASS';"
+                  sudo -n /usr/bin/mysql -uroot -e "GRANT ALL PRIVILEGES ON \`$DB_NAME\`.* TO '$DB_USER'@'localhost';"
+                  sudo -n /usr/bin/mysql -uroot -e "FLUSH PRIVILEGES;"
                   if [ -f "$DEPLOY_DIR/db.sql" ]; then
                     echo "📥 Applying db.sql for $DB_NAME..."
-                    sudo -n mysql -uroot "$DB_NAME" < "$DEPLOY_DIR/db.sql"
+                    sudo -n /usr/bin/mysql -uroot "$DB_NAME" < "$DEPLOY_DIR/db.sql"
                     echo "✅ Schema applied for $DB_NAME"
                   fi
                 fi
 
-          cat <<'EOCONFIGPHP' | sudo -n tee "$DEPLOY_DIR/config.php"
-          <?php
-          define('DB_HOST', 'localhost');
-          define('DB_NAME', '$DB_NAME');
-          define('DB_USER_NAME', '$DB_USER');
-          define('DB_PASSWORD', '$DB_PASS');
-          ?>
-          EOCONFIGPHP
+                cat <<'EOCONFIGPHP' | sudo -n /usr/bin/tee "$DEPLOY_DIR/config.php"
+                <?php
+                define('DB_HOST', 'localhost');
+                define('DB_NAME', '$DB_NAME');
+                define('DB_USER_NAME', '$DB_USER');
+                define('DB_PASSWORD', '$DB_PASS');
+                ?>
+                EOCONFIGPHP
 
-                sudo -n chown aqeel:www-data "$DEPLOY_DIR/config.php"
-                sudo -n chmod 640 "$DEPLOY_DIR/config.php"
+                sudo -n /usr/bin/chown aqeel:www-data "$DEPLOY_DIR/config.php"
+                sudo -n /usr/bin/chmod 640 "$DEPLOY_DIR/config.php"
               fi
 
               # Port assignment
@@ -127,56 +128,55 @@ jobs:
                 find "$BACKUP_DIR" -type d -mtime +7 -exec rm -rf {} \;
               fi
 
-          cat <<EOCONFIG | sudo -n tee "$CONFIG_FILE"
-          server {
-              listen $PORT;
-              server_name _;
-              root $DEPLOY_DIR;
-              index index.php;
-              client_max_body_size 100M;
+              cat <<EOCONFIG | sudo -n /usr/bin/tee "$CONFIG_FILE"
+              server {
+                  listen $PORT;
+                  server_name _;
+                  root $DEPLOY_DIR;
+                  index index.php;
+                  client_max_body_size 100M;
 
-              location / {
-                  try_files \$uri \$uri/ /index.php?\$query_string;
+                  location / {
+                      try_files \$uri \$uri/ /index.php?\$query_string;
+                  }
+
+                  location ~ \.php\$ {
+                      include snippets/fastcgi-php.conf;
+                      fastcgi_pass unix:/var/run/php/php8.3-fpm.sock;
+                      include fastcgi_params;
+                  }
+
+                  location ~ /\.ht {
+                      deny all;
+                  }
               }
+              EOCONFIG
 
-              location ~ \.php\$ {
-                  include snippets/fastcgi-php.conf;
-                  fastcgi_pass unix:/var/run/php/php8.3-fpm.sock;
-                  include fastcgi_params;
-              }
-
-              location ~ /\.ht {
-                  deny all;
-              }
-          }
-          EOCONFIG
-
-              sudo -n chown aqeel:www-data "$CONFIG_FILE"
-              sudo -n chmod 644 "$CONFIG_FILE"
-              sudo -n ln -sf "$CONFIG_FILE" "$ENABLED_LINK"
+              sudo -n /usr/bin/chown aqeel:www-data "$CONFIG_FILE"
+              sudo -n /usr/bin/chmod 644 "$CONFIG_FILE"
+              sudo -n /usr/bin/ln -sf "$CONFIG_FILE" "$ENABLED_LINK"
               echo "🌍 $SITE_NAME live at http://31.97.69.91:$PORT"
             done
 
             # Firewall Rules
-            sudo -n ufw allow 22/tcp
-            sudo -n ufw allow 80/tcp
-            sudo -n ufw allow 443/tcp
+            sudo -n /usr/sbin/ufw allow 22/tcp
+            sudo -n /usr/sbin/ufw allow 80/tcp
+            sudo -n /usr/sbin/ufw allow 443/tcp
             if [ -f "$PORTS_FILE" ]; then
               while IFS=: read -r site port; do
                 if [ -n "$port" ]; then
-                  sudo -n ufw allow "$port"/tcp
+                  sudo -n /usr/sbin/ufw allow "$port"/tcp
                   echo "🔓 Allowed port $port for $site"
                 fi
               done < "$PORTS_FILE"
             fi
 
-            sudo -n ufw reload
-            sudo -n ufw status
-            sudo -n nginx -t || { echo "🚨 Nginx config test failed"; exit 1; }
-            sudo -n systemctl reload nginx || { echo "🚨 Nginx reload failed"; exit 1; }
+            sudo -n /usr/sbin/ufw reload
+            sudo -n /usr/sbin/ufw status
+            sudo -n /usr/sbin/nginx -t || { echo "🚨 Nginx config test failed"; exit 1; }
+            sudo -n /usr/bin/systemctl reload nginx || { echo "🚨 Nginx reload failed"; exit 1; }
             echo "✅ Nginx configured and reloaded successfully"
           EOF
-
       - name: 🐛 Debug SSH
         run: |
           ssh -4 -i ~/.ssh/id_ed25519 aqeel@31.97.69.91 "echo '✅ SSH Working — Deployment Complete'"
