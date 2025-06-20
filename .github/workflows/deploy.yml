@@ -99,13 +99,13 @@ jobs:
                 fi
 
                 cat <<'EOCONFIGPHP' | sudo -n /usr/bin/tee "$DEPLOY_DIR/config.php"
-                <?php
-                define('DB_HOST', 'localhost');
-                define('DB_NAME', '$DB_NAME');
-                define('DB_USER_NAME', '$DB_USER');
-                define('DB_PASSWORD', '$DB_PASS');
-                ?>
-                EOCONFIGPHP
+          <?php
+          define('DB_HOST', 'localhost');
+          define('DB_NAME', '$DB_NAME');
+          define('DB_USER_NAME', '$DB_USER');
+          define('DB_PASSWORD', '$DB_PASS');
+          ?>
+          EOCONFIGPHP
 
                 sudo -n /usr/bin/chown aqeel:www-data "$DEPLOY_DIR/config.php"
                 sudo -n /usr/bin/chmod 640 "$DEPLOY_DIR/config.php"
@@ -129,28 +129,27 @@ jobs:
               fi
 
               cat <<EOCONFIG | sudo -n /usr/bin/tee "$CONFIG_FILE"
-              server {
-                  listen $PORT;
-                  server_name _;
-                  root $DEPLOY_DIR;
-                  index index.php;
-                  client_max_body_size 100M;
+          server {
+              listen $PORT;
+              server_name localhost;
+              root $DEPLOY_DIR;
+              index index.php;
+              client_max_body_size 100M;
 
-                  location / {
-                      try_files \$uri \$uri/ /index.php?\$query_string;
-                  }
-
-                  location ~ \.php\$ {
-                      include snippets/fastcgi-php.conf;
-                      fastcgi_pass unix:/var/run/php/php8.3-fpm.sock;
-                      include fastcgi_params;
-                  }
-
-                  location ~ /\.ht {
-                      deny all;
-                  }
+              location / {
+                  try_files \$uri \$uri/ /index.php?\$query_string;
               }
-              EOCONFIG
+
+              location ~ \.php\$ {
+                  include snippets/fastcgi-php.conf;
+                  fastcgi_pass unix:/var/run/php/php8.3-fpm.sock;
+              }
+
+              location ~ /\.ht {
+                  deny all;
+              }
+          }
+          EOCONFIG
 
               sudo -n /usr/bin/chown aqeel:www-data "$CONFIG_FILE"
               sudo -n /usr/bin/chmod 644 "$CONFIG_FILE"
@@ -177,6 +176,7 @@ jobs:
             sudo -n /usr/bin/systemctl reload nginx || { echo "🚨 Nginx reload failed"; exit 1; }
             echo "✅ Nginx configured and reloaded successfully"
           EOF
+
       - name: 🐛 Debug SSH
         run: |
           ssh -4 -i ~/.ssh/id_ed25519 aqeel@31.97.69.91 "echo '✅ SSH Working — Deployment Complete'"
